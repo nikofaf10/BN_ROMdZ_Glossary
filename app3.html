@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-height, initial-scale=1.0">
+  <title>Bangla-ROM-ENG GLOSSARY</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #444;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    input {
+      padding: 10px;
+      width: calc(100% - 22px);
+      margin-bottom: 0px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      transition: border 0.3s;
+    }
+    input:focus {
+      border-color: #007BFF;
+      outline: none;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin-top: 100px;
+      margin-bottom: 30px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .message {
+      margin-top: 20px;
+      font-style: italic;
+      color: red;
+      text-align: center;
+    }
+    .suggestions {
+      width: calc(50% - 22px);
+      max-height: 150px;
+      overflow-y: auto;
+      position: absolute;
+      background-color: white;
+      z-index: 1;
+      border-radius: 4px;
+    }
+    .suggestions div {
+      padding: 10px;
+      cursor: pointer;
+    }
+    .suggestions div:hover {
+      background-color: #f0f0f0;
+    }
+    .search-options {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>BENGALI-ROM-ENG GLOSSARY</h1>
+  <div>
+    <select id="searchType" class="search-options">
+      <option value="bangla">Bangla</option>
+      <option value="bn_latin">BN Latin</option> <!-- Updated option -->
+      <option value="english">English</option>
+    </select>
+    <input type="text" id="search" placeholder="Enter word..." oninput="showSuggestions()" />
+    <div id="suggestions" class="suggestions"></div>
+    <button onclick="searchWord()">Search</button>
+  </div>
+
+  <table id="dictionary">
+    <thead>
+      <tr>
+        <th>Bangla</th>
+        <th>BN Latin</th>
+        <th>BN Latin-ALT</th>
+        <th>English Meaning</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+    </tbody>
+  </table>
+
+  <div id="no-result" class="message"></div>
+</div>
+
+<script>
+  let sheetData = [];
+
+  // Load data from the CSV format of the published Google Sheet
+  async function loadData() {
+    const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRkIBQQYrxkeYTdlGxCCBTT7ntu5nPNWQ1EUyOUi1HBl4qw3lNz43eABNTIBlF5yCTNo9o2YAfTNG4h/pub?output=csv');
+    const data = await response.text();
+    const rows = data.split("\n").slice(1); // Remove header row
+
+    sheetData = rows.map(row => {
+      const [bangla, bn_latin_1, bn_latin_2, englishMeaning] = row.split(",");
+      return {
+        bangla: bangla.trim(),
+        bn_latin_1: bn_latin_1.trim(),
+        bn_latin_2: bn_latin_2.trim(),
+        englishMeaning: englishMeaning.trim() || 'N/A'
+      };
+    });
+  }
+
+  // Show suggestions as the user types
+  function showSuggestions() {
+    const searchValue = document.getElementById('search').value.trim().toLowerCase();
+    const suggestionsBox = document.getElementById('suggestions');
+
+    // Clear any previous suggestions
+    suggestionsBox.innerHTML = '';
+
+    // If input is empty, hide suggestions
+    if (searchValue === '') {
+      return;
+    }
+
+    // Filter the data based on the selected search type
+    const searchType = document.getElementById('searchType').value;
+    const matchedData = sheetData.filter(row => {
+      // For English, we match against the English meaning
+      if (searchType === 'english') {
+        return row.englishMeaning.toLowerCase().includes(searchValue);
+      } else if (searchType === 'bn_latin') {
+        return row.bn_latin_1.toLowerCase().includes(searchValue); // Show only BN Latin 1 words
+      } else {
+        return row[searchType].toLowerCase().includes(searchValue);
+      }
+    });
+
+    // Show suggestions if matches are found
+    if (matchedData.length > 0) {
+      matchedData.forEach(row => {
+        const suggestionDiv = document.createElement('div');
+        suggestionDiv.textContent = searchType === 'english' ? row.englishMeaning : (searchType === 'bn_latin' ? row.bn_latin_1 : row[searchType]); // Adjusted to show BN Latin 1
+        suggestionDiv.onclick = () => selectSuggestion(searchType === 'english' ? row.englishMeaning : (searchType === 'bn_latin' ? row.bn_latin_1 : row[searchType]));
+        suggestionsBox.appendChild(suggestionDiv);
+      });
+    }
+  }
+
+  // Select a suggestion from the dropdown
+  function selectSuggestion(word) {
+    document.getElementById('search').value = word;
+    document.getElementById('suggestions').innerHTML = ''; // Hide suggestions after selection
+  }
+
+  // Search function
+  function searchWord() {
+    const searchValue = document.getElementById('search').value.trim().toLowerCase();
+    const searchType = document.getElementById('searchType').value;
+    const tableBody = document.getElementById('table-body');
+    const noResultDiv = document.getElementById('no-result');
+
+    // Clear previous results
+    tableBody.innerHTML = '';
+    noResultDiv.innerHTML = '';
+
+    // Filter the search result
+    const filteredData = sheetData.filter(row => {
+      if (searchType === 'english') {
+        return row.englishMeaning.toLowerCase() === searchValue;
+      } else if (searchType === 'bn_latin') {
+        return row.bn_latin_1.toLowerCase() === searchValue; // Search only in BN Latin 1
+      } else {
+        return row[searchType].toLowerCase() === searchValue;
+      }
+    });
+
+    if (filteredData.length > 0) {
+      // Display the searched word, BN Latin, and English meaning
+      filteredData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.bangla}</td><td>${row.bn_latin_1}</td><td>${row.bn_latin_2}</td><td>${row.englishMeaning}</td>`;
+        tableBody.appendChild(tr);
+      });
+    } else {
+      // Display "No result" message
+      noResultDiv.innerHTML = 'No matching word found.';
+    }
+  }
+
+  // Initial load
+  loadData();
+</script>
+
+</body>
+</html>
